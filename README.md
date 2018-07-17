@@ -1,0 +1,2 @@
+# SAVi
+Simple Alignment Viewer
