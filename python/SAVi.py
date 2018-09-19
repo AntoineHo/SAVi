@@ -12,11 +12,18 @@ import multiprocessing
 import datetime
 import subprocess
 import sqlite3
+import inspect
 
 class MainSAVi(wx.Frame) :
     """This is a frame inherited object setting up the main frame of SAVi"""
     def __init__(self, parent, title) :
         """Class builder"""
+
+        # CHANGE WORKING DIR TO SAVI DIRECTORY
+        SAViPath = os.path.abspath(inspect.stack()[0][1])
+        dirSAViPath = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+        os.chdir(dirSAViPath)
+
         """
         The super function is versatile:
         1. super() is called on a class to get a single inheritance to refer to the parent class without naming it
@@ -27,7 +34,6 @@ class MainSAVi(wx.Frame) :
         Formerly in py2:
         super(SubClass, self).method(args) #It is still valid in python3
         """
-
         super().__init__(parent, title=title, size=(1400,800))
 
         self.Centre()
@@ -198,6 +204,7 @@ class MainSAVi(wx.Frame) :
         self.minTxt = wx.StaticText(self, label="- strand color", style=wx.ALIGN_LEFT)
         self.showInfoTxt = wx.StaticText(self, label="Show block informations", style=wx.ALIGN_LEFT)
         self.showLinksTxt = wx.StaticText(self, label="Show links on chromosome", style=wx.ALIGN_LEFT)
+        self.showQueryTxt = wx.StaticText(self, label="Show total query blocks", style=wx.ALIGN_LEFT)
 
         # INPUT
         self.queryInput = wx.TextCtrl(self)
@@ -227,6 +234,8 @@ class MainSAVi(wx.Frame) :
         self.showInfoBox.Enable(False)
         self.showLinksBox = wx.CheckBox(self)
         self.showLinksBox.Enable(False)
+        self.showQueryBox = wx.CheckBox(self)
+        self.showQueryBox.Enable(False)
 
         # OUTPUT
         self.logout = wx.TextCtrl(self, value="Outputs are printed here\n", style = wx.TE_READONLY | wx.TE_MULTILINE) # Sets self as parent
@@ -241,6 +250,7 @@ class MainSAVi(wx.Frame) :
         self.HSub6 = wx.BoxSizer(wx.HORIZONTAL) # - col
         self.HSub7 = wx.BoxSizer(wx.HORIZONTAL) # show info
         self.HSub8 = wx.BoxSizer(wx.HORIZONTAL) # show links
+        self.HSub9 = wx.BoxSizer(wx.HORIZONTAL) # show only alignment block
 
         # COLOR INFO
         self.colChromPanel = wx.Panel(self)
@@ -262,6 +272,7 @@ class MainSAVi(wx.Frame) :
         self.VBoxLeft.Add(self.HSub6,       flag=wx.EXPAND|wx.ALL)
         self.VBoxLeft.Add(self.HSub7,       flag=wx.EXPAND|wx.ALL)
         self.VBoxLeft.Add(self.HSub8,       flag=wx.EXPAND|wx.ALL)
+        self.VBoxLeft.Add(self.HSub9,       flag=wx.EXPAND|wx.ALL)
         self.VBoxLeft.Add((-1,5),           flag=wx.EXPAND)
         self.VBoxLeft.Add(self.displayButton, flag=wx.EXPAND|wx.ALL, border=2)
         self.VBoxLeft.Add(self.logout, flag=wx.CENTER|wx.EXPAND, border=2, proportion=1)
@@ -275,6 +286,7 @@ class MainSAVi(wx.Frame) :
         self.HSub6.Add(self.minTxt,         flag=wx.CENTER|wx.EAST, proportion=3)
         self.HSub7.Add(self.showInfoTxt,    flag=wx.CENTER|wx.EAST, proportion=1)
         self.HSub8.Add(self.showLinksTxt,   flag=wx.CENTER|wx.EAST, proportion=1)
+        self.HSub9.Add(self.showQueryTxt,   flag=wx.CENTER|wx.EAST, proportion=1)
 
         self.HSub0.Add(self.queryInput,     border=1, proportion=1)
         self.HSub1.Add(self.sepInput,       border=1, proportion=1)
@@ -285,6 +297,7 @@ class MainSAVi(wx.Frame) :
         self.HSub6.Add(self.minInput,       border=1, proportion=2)
         self.HSub7.Add(self.showInfoBox,    border=1, proportion=1)
         self.HSub8.Add(self.showLinksBox,   border=1, proportion=1)
+        self.HSub9.Add(self.showQueryBox,   border=1, proportion=1)
 
         self.HSub4.Add(self.colChromPanel,  border=1, proportion=1, flag=wx.EXPAND|wx.ALL|wx.CENTER)
         self.HSub5.Add(self.colPlusPanel,   border=1, proportion=1, flag=wx.EXPAND|wx.ALL|wx.CENTER)
@@ -400,6 +413,7 @@ class MainSAVi(wx.Frame) :
         self.minInput.Enable(False)                     # Disables - strand color input
         self.showInfoBox.Enable(False)                  # Disables show info tick
         self.showLinksBox.Enable(False)                 # Disables show links tick
+        self.showQueryBox.Enable(False)                 # Disables show links tick
         self.displayButton.Enable(False)                # Disables SADisplay command start
 
         # ENABLES WIDGETS
@@ -442,6 +456,7 @@ class MainSAVi(wx.Frame) :
         DISPLAY = True                                              # Sets a DISPLAY bool
         showinfo = bool(self.showInfoBox.GetValue())                # Gets the value of show info
         showlinks = bool(self.showLinksBox.GetValue())              # Gets the value of show links
+        showtotal = bool(self.showQueryBox.GetValue())                  # Gets the value of show only aligned blocks
         try :
             qname = str(self.queryInput.GetValue())                 # Gets the value of query input
             if not self.check_input_value_type(qname, "string") :   # Checks the value type
@@ -526,7 +541,11 @@ class MainSAVi(wx.Frame) :
             if not showlinks :
                 links = "n"
 
-            cmd = "../SADisplay/SADisplay {} {} {} {} {} {} {} {} {} {}".format(self.rename_spac(self.currentDB), sep, zoom, yoff, links, chrcolstr, pluscolstr, minuscolstr, info, qname)
+            total = "y"
+            if not showtotal :
+                total = "n"
+
+            cmd = "../SADisplay/SADisplay {} {} {} {} {} {} {} {} {} {} {}".format(self.rename_spac(self.currentDB), sep, zoom, yoff, links, chrcolstr, pluscolstr, minuscolstr, info, qname, total)
             self.logout.AppendText("Command used:\n${}\n".format(cmd))          # Logs the cmd
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)    # Starts SADisplay
             self.logout.SetDefaultStyle(wx.TextAttr(colText=wx.RED))            # Sets the text to red
@@ -596,6 +615,7 @@ class MainSAVi(wx.Frame) :
         self.minInput.Enable(True)          # Enables - strand color input
         self.showInfoBox.Enable(True)       # Enables show info tick
         self.showLinksBox.Enable(True)      # Enables show links tick
+        self.showQueryBox.Enable(True)      # Enables show links tick
         self.displayButton.Enable(True)     # Enables SADisplay command start
 
     def _pick_color(self, event) :

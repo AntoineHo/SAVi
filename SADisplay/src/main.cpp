@@ -5,7 +5,7 @@ using namespace svg;
 // FUNCTIONS
 int main(int argc, char* argv[]) {
 	// Check the number of parameters
-	if (argc != 2 && argc != 11) {
+	if (argc != 2 && argc != 12) {
 		std::cout << "WARNING: Bad argument number!" << std::endl;
 		// Tell the user how to run the program
 		printHelp();
@@ -65,6 +65,12 @@ int main(int argc, char* argv[]) {
 	std::string targetName(argv[10]);															//Target Name
 	//std::cout << "Target name:\t\t" << targetName << std::endl; // DEBUG
 
+	bool total(false);																					// Show only aligned blocks (not the total block)
+	//std::cout << std::string(argv[9]) << std::endl; 						// DEBUG
+	if (std::string(argv[11]) != "n") {
+		total = true;
+	}
+
 	std::cout << "OK" << std::endl;
 
 	// SELECTING FROM DATABASE AND CREATING THE CONTIGLIST
@@ -76,7 +82,7 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Creating .svg figure...\t\t\t";																			// Setting a string with SVGFilePath
 	std::string SVGFilePath(dbFilePath.substr(0, dbFilePath.find_last_of("\\/")+1) + targetName + ".svg");
-  buildGraph(ctgList, chrLength, offset, zoomFactor, c1, c2, c3, yoffset, showLinks, showInfo, targetName, SVGFilePath);
+  buildGraph(ctgList, chrLength, offset, zoomFactor, c1, c2, c3, yoffset, showLinks, showInfo, total, targetName, SVGFilePath);
 	std::cout << "OK" << std::endl;
 	std::cout << "Output path:\n" << SVGFilePath << std::endl;
   return 0;
@@ -213,7 +219,7 @@ std::vector<Contig> readDB(std::string &dbFilePath, std::string &targetName, int
 	return ctgList;
 }
 
-void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom, svg::Color col1, svg::Color col2, svg::Color col3, int Yoffset, bool showLinks, bool showInfo, std::string targetName, std::string SVGFilePath) {
+void buildGraph(std::vector<Contig>& ctgList, int& chrLength, int& offset, int& zoom, svg::Color& col1, svg::Color& col2, svg::Color& col3, int& Yoffset, bool& showLinks, bool& showInfo, bool& total, std::string& targetName, std::string& SVGFilePath) {
 	int lstSize(ctgList.size());
 
 	// Initializes row lists
@@ -247,7 +253,7 @@ void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom
 		if (plus) { // Loops through PLUS ROW LIST
 			for (int j(0); j < plusRowLst.size(); j++) {
 
-				if (!(plusRowLst[j].inSpan(ctgSpan1, ctgSpan2, offset))) { // Checks if contig is in span (+ 10 bp of sep min)
+				if (!(plusRowLst[j].inSpan(ctgSpan1, ctgSpan2, offset))) { // Checks if contig is in span (+ offset of sep min)
 					plusRowLst[j].addSpan(ctgSpan1, ctgSpan2); // Adds a soan to current row
 					ctgList[i].setRow(j); // Sets the row nb to current contig
 					//std::cout << "Added to row: " << j << std::endl;
@@ -312,13 +318,13 @@ void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom
 
 	for (int i(0); i < lstSize; i++) { // FOR EACH CTG IN LIST
 		Contig contig(ctgList[i]);
-		bool plus(contig.getRelStrand());
-		int rowNb(contig.getRow() + 1); // Rows are not 0 indexed below (easier compute)
-		int tStart(contig.getChrStart()/zoom);
-		int tEnd(contig.getChrEnd()/zoom);
-		int qStart(contig.getStart()/zoom);
-		int qEnd(contig.getEnd()/zoom);
-		int qLength(contig.getLength()/zoom);
+		bool plus(contig.getRelStrand());					// RELATIVE STRAND WHERE BLOCK WAS FOUND
+		int rowNb(contig.getRow() + 1); 					// Rows are not 0 indexed below (easier compute)
+		int tStart(contig.getChrStart()/zoom);		// START ON CHROMOSOME
+		int tEnd(contig.getChrEnd()/zoom);				// END ON CHROMOSOME
+		int qStart(contig.getStart()/zoom);				// START ON QUERY (where fisrt link should point)
+		int qEnd(contig.getEnd()/zoom);						// END ON QUERY (where second link should point)
+		int qLength(contig.getLength()/zoom);			// TOTAL LENGTH OF CONTIG (ALIGNED LENGTH = chrend - chrstart)
 
 		// BUILDS THE STRAND INFO STRING
 		std::stringstream ss;
@@ -339,11 +345,13 @@ void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom
 		// END DEBUG
 
 		// BLOCKS
-		// Y position : Y offset + (T start - Q start)
+		// Y position : Y offset + (T start - Q start) (Y offset + position on chromosome - start position on contig)
 		int blockYPosition(Yoffset + (tStart - qStart) ); // Y position of the block to draw (same on + & - sides of chr)
-
+																											// THIS Y POSITION SHOULD BE tstart if option TOTAL is set
 		// LINKS
-		// up link 1 (ctg) y position : blockYPosition + Q start
+		// up link 1 (ctg) y position : blockYPosition + Q start <--> Y offset + tStart
+		// since blockYPosition = Yoffset + tStart - qStart
+		// THEN uplink1Y = Yoffset + tStart - qStart + qStart <=> upLink1Y = Yoffset + tStart
 		int upLink1Y(blockYPosition + qStart);
 		// down link 1 (ctg) y position : blockYPosition + Q end
 		int downLink1Y(blockYPosition + qEnd);
@@ -363,13 +371,24 @@ void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom
 			// LINKS ON CHROMOSOME X POSITION = X POSITION OF THE CHROMOSOME + 20 -> 30*(nM+1)
 			int linksOnChromosomeXPosition(30*(nM+1));
 
-			doc << Rectangle(Point(blockXPosition, blockYPosition), 20, qLength, idString, col2);
-			if (showInfo && qLength != 0) {
-				doc << Text(Point(blockXPosition+25, blockYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+			if (total) {
+				doc << Rectangle(Point(blockXPosition, blockYPosition), 20, qLength, idString, col2);
+				if (showInfo && qLength != 0) {
+					doc << Text(Point(blockXPosition+25, blockYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+				}
+			} else {
+				int onlyAlignedYPosition(Yoffset + tStart);
+				int onlyAlignedLength(tEnd - tStart);
+				//std::cout << "ys: " << onlyAlignedYPosition << "\tyL: " << onlyAlignedLength << std::endl;
+				doc << Rectangle(Point(blockXPosition, onlyAlignedYPosition), 20, onlyAlignedLength, idString, col2);
+				if (showInfo && qLength != 0) {
+					doc << Text(Point(blockXPosition+25, onlyAlignedYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+				}
 			}
 
 			// SHOW THE LINKS
-			if (showLinks && qLength != 0) {
+			int alignedLength(tEnd - tStart);
+			if (showLinks && qLength != 0 && alignedLength > 1) {
 				Point upCtg(blockXPosition, upLink1Y);
 				Point upChr(linksOnChromosomeXPosition, upLink2Y);
 				Point downCtg(blockXPosition, downLink1Y);
@@ -392,13 +411,24 @@ void buildGraph(std::vector<Contig> ctgList, int chrLength, int offset, int zoom
 			// LINKS ON CHROMOSOME X POSITION = X POSITION OF THE CHROMOSOME -> 30*nM+10
 			int linksOnChromosomeXPosition(30*nM+10);
 
-			doc << Rectangle(Point(blockXPosition, blockYPosition), 20, qLength, idString, col3);
-			if (showInfo && qLength != 0) {
-				doc << Text(Point(blockXPosition-15, blockYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+
+			if (total) {
+				doc << Rectangle(Point(blockXPosition, blockYPosition), 20, qLength, idString, col3);
+				if (showInfo && qLength != 0) {
+					doc << Text(Point(blockXPosition-15, blockYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+				}
+			} else {
+				int onlyAlignedYPosition(Yoffset + tStart);
+				int onlyAlignedLength(tEnd - tStart);
+				doc << Rectangle(Point(blockXPosition, onlyAlignedYPosition), 20, onlyAlignedLength, idString, col3);
+				if (showInfo && qLength != 0) {
+					doc << Text(Point(blockXPosition-15, onlyAlignedYPosition-2), toString(qLength), Color::Black, Font(10, "Verdana"));
+				}
 			}
 
 			// SHOW THE LINKS
-			if (showLinks && qLength != 0) {
+			int alignedLength(tEnd - tStart);
+			if (showLinks && qLength != 0 && alignedLength > 1) {
 				Point upCtg(linksOnContigXPosition, upLink1Y);
 				Point upChr(linksOnChromosomeXPosition, upLink2Y);
 				Point downCtg(linksOnContigXPosition, downLink1Y);

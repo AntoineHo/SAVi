@@ -1,5 +1,6 @@
 #!/bin/bash
 #To avoid permission issue: chmod +x install.sh
+#To avoid cmake ABI issues: sudo install.sh
 #1. Install SARead
 cd ./SARead
 mkdir tmp
