@@ -1,24 +1,24 @@
 # SAVi
 ## Simple Alignment Viewer
-Author:  
-Antoine Houtain
 
-SAVi is used to visualize alignments from minimap2 .paf files, it comes with a GUI in python for convenience. It reads the .paf file and generates a SQLITE3 database which is then used to create interactive SVGs.
+SAVi is used to visualize alignments formatted in .paf files, it comes with a GUI in python. It reads the .paf file and generates interactive SVGs given a target name.
 
 ## Dependencies
-cmake  
-sqlite3  
-wxpython
-
-## Installation
 ```
-chmod +x install.sh  
-./install.sh
+cefpython3
+pandas
+numpy
+```
+
+## Installation (using conda)
+```
+conda create -n savi python=3.7 pandas numpy pip
+conda activate savi
+pip install cefpython3=66.0
 ```
 ## Use
 ```
-cd python  
-python SAVi.py
+python /path/to/SAVi_v02.py
 ```
 
 ### License
