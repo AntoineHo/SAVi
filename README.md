@@ -21,6 +21,16 @@ pip install cefpython3=66.0
 python /path/to/SAVi_v02.py
 ```
 
+GUI usage steps:
+1. Open a .paf file
+2. Click on the read button
+3. Write the name of the target to draw
+4. Click the draw button
+5. Save the output in .html or .svg
+
+The image below shows an example of the GUI after a .paf file has been loaded
+![alt text](savi_loaded.png "Example GUI")
+
 ### License
 
 Copyright (c) 2018 Antoine Houtain
