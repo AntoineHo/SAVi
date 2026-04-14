@@ -14,7 +14,7 @@ numpy
 ```
 conda create -n savi python=3.7 pandas numpy pip
 conda activate savi
-pip install cefpython3=66.0
+pip install cefpython3==66.0
 ```
 ## Use
 ```
